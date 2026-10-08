@@ -1,0 +1,7 @@
+"NSDesktopFolderUsageDescription" = "LiriOS 需要讀取桌面以瀏覽與搜尋檔案。";
+"NSDocumentsFolderUsageDescription" = "LiriOS 需要讀取文件資料夾以瀏覽與搜尋檔案。";
+"NSDownloadsFolderUsageDescription" = "LiriOS 需要讀取下載項目以瀏覽與搜尋檔案。";
+"NSRemovableVolumesUsageDescription" = "LiriOS 需要讀取外接磁碟以瀏覽與搜尋檔案。";
+"NSRemindersFullAccessUsageDescription" = "LiriOS 的待辦卡需要讀寫「提醒事項」,才能在面板裡新增與勾選待辦。";
+"NSCalendarsFullAccessUsageDescription" = "LiriOS 的側面板需要讀取行事曆來顯示你的行程。";
+"NSLocationWhenInUseUsageDescription" = "LiriOS 的天氣小工具需要你的位置來取得當地天氣。";

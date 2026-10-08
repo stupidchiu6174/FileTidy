@@ -1,0 +1,7 @@
+"NSDesktopFolderUsageDescription" = "LiriOSは、ファイルの閲覧と検索のためにデスクトップを読み取る必要があります。";
+"NSDocumentsFolderUsageDescription" = "LiriOSは、ファイルの閲覧と検索のために書類フォルダを読み取る必要があります。";
+"NSDownloadsFolderUsageDescription" = "LiriOSは、ファイルの閲覧と検索のためにダウンロードフォルダを読み取る必要があります。";
+"NSRemovableVolumesUsageDescription" = "LiriOSは、ファイルの閲覧と検索のために外部ディスクを読み取る必要があります。";
+"NSRemindersFullAccessUsageDescription" = "LiriOSのToDoカードでリマインダーを追加・完了するには、リマインダーへのアクセスが必要です。";
+"NSCalendarsFullAccessUsageDescription" = "LiriOSのサイドパネルに予定を表示するため、カレンダーを読み取る必要があります。";
+"NSLocationWhenInUseUsageDescription" = "LiriOSの天気ウィジェットは、現地の天気を表示するために位置情報を使用します。";

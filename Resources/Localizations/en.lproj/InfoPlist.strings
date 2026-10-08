@@ -1,0 +1,7 @@
+"NSDesktopFolderUsageDescription" = "LiriOS needs to read the Desktop to browse and search your files.";
+"NSDocumentsFolderUsageDescription" = "LiriOS needs to read the Documents folder to browse and search your files.";
+"NSDownloadsFolderUsageDescription" = "LiriOS needs to read Downloads to browse and search your files.";
+"NSRemovableVolumesUsageDescription" = "LiriOS needs to read external disks to browse and search your files.";
+"NSRemindersFullAccessUsageDescription" = "LiriOS needs access to Reminders so the to-do card can add and check off items.";
+"NSCalendarsFullAccessUsageDescription" = "LiriOS needs to read your calendars to show your schedule in the side panel.";
+"NSLocationWhenInUseUsageDescription" = "LiriOS uses your location to show local weather in the weather widget.";
