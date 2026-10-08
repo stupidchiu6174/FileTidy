@@ -119,6 +119,8 @@ final class AppModel {
 
     // 對話框
     var renameTarget: URL?
+    /// 圖示檢視裡直接在檔名上編輯(雙擊檔名)
+    var inlineRenameTarget: URL?
     var infoTarget: URL?
     var analysisTarget: AnalysisRequest?
     var launchAtLogin = SMAppService.mainApp.status == .enabled

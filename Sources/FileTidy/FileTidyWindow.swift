@@ -7,8 +7,8 @@ public enum FileTidyIntegration {
     public static let windowID = "files"
     static let hideAtLoginKey = "hideWindowAtLogin"
 
-    /// 由 LiriOS 設定:把檔案管理視窗叫出來(視窗關著時重新開啟)
-    public static var openWindow: () -> Void = {}
+    /// 視窗關著時重新開啟它(SwiftUI 的 openWindow,由 WindowAttacher 在視窗建立時取得)
+    static var openWindow: () -> Void = {}
 
     /// 檔案管理視窗(由 ContentView 掛上;LiriOS 還有壁紙、小工具、監測等其他視窗,
     /// 不能再用「第一個非面板視窗」來找)
@@ -20,7 +20,8 @@ public enum FileTidyIntegration {
     /// 登入時不顯示視窗:SwiftUI 建好視窗後直接關掉
     static var closeWindowOnAttach = false
 
-    static func showWindow() {
+    /// 把檔案管理視窗叫到前面(關著就重新開啟)
+    public static func showWindow() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         if let w = window, w.contentView != nil { w.makeKeyAndOrderFront(nil) } else { openWindow() }
@@ -91,7 +92,12 @@ private struct WindowAttacher: NSViewRepresentable {
             }
         }
     }
-    func makeNSView(context: Context) -> Probe { Probe() }
+    func makeNSView(context: Context) -> Probe {
+        // 記下 openWindow:之後視窗關掉了,選單列、Dock、「在 Finder 中顯示」還能把它開回來
+        let open = context.environment.openWindow
+        FileTidyIntegration.openWindow = { open(id: FileTidyIntegration.windowID) }
+        return Probe()
+    }
     func updateNSView(_ nsView: Probe, context: Context) {}
 }
 

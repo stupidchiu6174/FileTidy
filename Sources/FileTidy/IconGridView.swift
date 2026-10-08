@@ -81,18 +81,21 @@ struct IconGridView<Menu: View>: View {
         .focused($focused)
         .focusEffectDisabled()
         .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+            guard model.inlineRenameTarget == nil else { return .ignored }
             move(press.key, extend: press.modifiers.contains(.shift)); return .handled
         }
         .onKeyPress(.space) {
-            guard let first = selection.sorted(by: { $0.path < $1.path }).first else { return .ignored }
+            guard model.inlineRenameTarget == nil, let first = selection.sorted(by: { $0.path < $1.path }).first else { return .ignored }
             model.quickLookURL = first; return .handled
         }
         .onKeyPress(.return) {
-            guard let first = selection.sorted(by: { $0.path < $1.path }).first else { return .ignored }
-            model.renameTarget = first; return .handled
+            guard model.inlineRenameTarget == nil,
+                  let first = selection.sorted(by: { $0.path < $1.path }).first else { return .ignored }
+            selection = [first]
+            model.inlineRenameTarget = first; return .handled
         }
         .onKeyPress(characters: ["a"], phases: .down) { press in
-            guard press.modifiers == .command else { return .ignored }
+            guard press.modifiers == .command, model.inlineRenameTarget == nil else { return .ignored }
             selection = Set(entries.map(\.url)); return .handled
         }
         .onCopyCommand {
@@ -101,7 +104,7 @@ struct IconGridView<Menu: View>: View {
             return urls.map { NSItemProvider(object: $0 as NSURL) }
         }
         .onPasteCommand(of: [.fileURL]) { _ in if allowPaste { model.paste() } }
-        .onDeleteCommand { onTrash(Array(selection)) }
+        .onDeleteCommand { if model.inlineRenameTarget == nil { onTrash(Array(selection)) } }
         .overlay { if entries.isEmpty { Text("空的資料夾").foregroundStyle(.secondary) } }
     }
 
@@ -150,14 +153,14 @@ struct IconGridView<Menu: View>: View {
 
     /// 圖示與檔名各自負責一塊「可點擊/可拖曳」的區域;格子裡其餘的空白處不算,
     /// 點到會當成點空白處(取消選取或開始框選),和 Finder 一致。
-    private func hitArea(_ entry: GridEntry, iconPoints: CGFloat) -> some View {
+    private func hitArea(_ entry: GridEntry, iconPoints: CGFloat, onActivate: @escaping () -> Void) -> some View {
         FileDragOverlay(
             url: entry.url,
             selectedURLs: { Array(selection) },
             onMouseDown: { mods in focused = true; select(entry.url, mods) },
             onPlainClick: { if selection.count > 1 { selection = [entry.url]; anchor = entry.url } },
             onContextClick: { if !selection.contains(entry.url) { selection = [entry.url] } },
-            onActivate: { model.activate(entry.url) },
+            onActivate: onActivate,
             iconPoints: iconPoints)
     }
 
@@ -171,19 +174,31 @@ struct IconGridView<Menu: View>: View {
                 .background(hovering ? Color.accentColor.opacity(0.3) : (selected ? Color.secondary.opacity(0.25) : .clear),
                             in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .contentShape(Rectangle())
-                .overlay { hitArea(entry, iconPoints: size.points) }
+                // 雙擊圖示:開啟
+                .overlay { hitArea(entry, iconPoints: size.points) { model.activate(entry.url) } }
                 .contextMenu { menu(menuSelection) }
-            Text(entry.name)
-                .font(nameFont)
-                .lineLimit(size == .small ? 1 : 2)
-                .truncationMode(.middle)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 5)
-                .background(selected ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .foregroundStyle(selected ? Color.white : Color.primary)
-                .contentShape(Rectangle())
-                .overlay { hitArea(entry, iconPoints: 0) }
-                .contextMenu { menu(menuSelection) }
+            if model.inlineRenameTarget == entry.url {
+                InlineRenameField(url: entry.url, font: nameFont)
+            } else {
+                Text(entry.name)
+                    .font(nameFont)
+                    .lineLimit(size == .small ? 1 : 2)
+                    .truncationMode(.middle)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 5)
+                    .background(selected ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .foregroundStyle(selected ? Color.white : Color.primary)
+                    .contentShape(Rectangle())
+                    // 雙擊檔名:直接在原地改名(和 Finder 一樣,圖示才是開啟)
+                    .overlay {
+                        hitArea(entry, iconPoints: 0) {
+                            selection = [entry.url]
+                            anchor = entry.url
+                            model.inlineRenameTarget = entry.url
+                        }
+                    }
+                    .contextMenu { menu(menuSelection) }
+            }
         }
         .frame(width: cellWidth)
         .padding(.vertical, 4)
@@ -228,6 +243,50 @@ struct IconGridView<Menu: View>: View {
         let r = SelectionLogic.move(to: target, shift: extend, order: order, state: state)
         selection = r.selection
         anchor = r.anchor
+    }
+}
+
+/// 圖示檢視的原地改名欄位:預先選取主檔名(不含副檔名);Return 或點別處確定,Esc 取消
+private struct InlineRenameField: View {
+    @Environment(AppModel.self) private var model
+    let url: URL
+    let font: Font
+    @State private var text = ""
+    @State private var textSelection: TextSelection?
+    @State private var finished = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField("", text: $text, selection: $textSelection)
+            .textFieldStyle(.plain)
+            .font(font)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 3)
+            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 1.5))
+            .focused($focused)
+            .onAppear {
+                let name = url.lastPathComponent
+                text = name
+                let ext = url.pathExtension
+                let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                let baseEnd = !ext.isEmpty && !isFolder
+                    ? name.index(name.endIndex, offsetBy: -(ext.count + 1))
+                    : name.endIndex
+                focused = true
+                // 等欄位真的成為焦點後再設選取範圍,否則會被「全選」蓋掉
+                DispatchQueue.main.async { textSelection = TextSelection(range: name.startIndex..<baseEnd) }
+            }
+            .onSubmit { finish(commit: true) }
+            .onExitCommand { finish(commit: false) }
+            .onChange(of: focused) { _, now in if !now { finish(commit: true) } }
+    }
+
+    private func finish(commit: Bool) {
+        guard !finished else { return }
+        finished = true
+        if commit { model.rename(url, to: text) }
+        if model.inlineRenameTarget == url { model.inlineRenameTarget = nil }
     }
 }
 
