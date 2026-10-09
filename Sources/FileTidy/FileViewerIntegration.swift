@@ -37,6 +37,14 @@ enum FileViewerIntegration {
 
     static func disable() { setViewer(nil) }
 
+    /// 合併前的 FileTidy 的 bundle ID
+    private static let legacyViewers: Set<String> = ["local.filetidy"]
+
+    static func takeOverFromLegacyApp() {
+        guard let current = currentViewer, legacyViewers.contains(current) else { return }
+        setViewer(Bundle.main.bundleIdentifier)
+    }
+
     private static func setViewer(_ bundleID: String?) {
         CFPreferencesSetValue(key, bundleID as CFString?, kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
         CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)

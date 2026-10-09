@@ -22,9 +22,27 @@ public enum FileTidyIntegration {
 
     /// 把檔案管理視窗叫到前面(關著就重新開啟)
     public static func showWindow() {
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        if let w = window, w.contentView != nil { w.makeKeyAndOrderFront(nil) } else { openWindow() }
+        let present = {
+            // macOS 14 起的協作式啟用:由使用者點擊觸發的請求(例如別的 App 的「在 Finder 中顯示」)
+            // 系統會讓出前景;ignoringOtherApps 已經沒有作用
+            NSApp.activate()
+            if let w = window, w.contentView != nil {
+                if w.isMiniaturized { w.deminiaturize(nil) }
+                w.makeKeyAndOrderFront(nil)
+                // 系統偶爾不讓背景 App 搶到前景(例如別的 App 正在用);至少讓視窗本身浮上來
+                w.orderFrontRegardless()
+            } else {
+                openWindow()
+            }
+        }
+        // LiriOS 平常是沒有 Dock 圖示的背景 App。剛切成一般 App 的那一拍就要求啟用會被系統忽略——
+        // 「在 Finder 中顯示」明明送到了、視窗卻沒跑出來,就是這個原因。等下一拍再啟用。
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+            DispatchQueue.main.async(execute: present)
+        } else {
+            present()
+        }
     }
 
     /// 是否由「登入項目」啟動:啟動事件(oapp)帶有 'lgit' 旗標
@@ -38,6 +56,10 @@ public enum FileTidyIntegration {
 
     /// 在 applicationDidFinishLaunching 呼叫
     public static func didFinishLaunching() {
+        // 原本把舊的 FileTidy 設成預設檔案檢視器的話,改指向 LiriOS——
+        // 否則「在 Finder 中顯示」會去叫醒舊 App(甚至是垃圾桶裡那一份)
+        FileViewerIntegration.takeOverFromLegacyApp()
+
         // 若設定了「啟動時隱藏 Finder」:稍等一下(讓視窗先出現)再隱藏
         if FinderControl.hideOnLaunch {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { FinderControl.hide() }
