@@ -218,7 +218,11 @@
 "中" = "Medium";
 "大" = "Large";
 "資訊" = "Information";
-"排序方式" = "Sort By";
+"排列方式" = "Sort By";
+"排列方式:%@" = "Sort By: %@";
+"遞增" = "Ascending";
+"遞減" = "Descending";
+"資料夾排在最前面" = "Keep Folders on Top";
 "隱藏 Finder" = "Hide Finder";
 "啟動時自動隱藏 Finder" = "Hide Finder When LiriOS Opens";
 "分析資料夾內容…" = "Analyze Folder Contents…";

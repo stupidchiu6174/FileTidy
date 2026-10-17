@@ -6,6 +6,7 @@ import FileTidyCore
 
 extension DirItem {
     var sortModified: Date { modified ?? .distantPast }
+    var sortCreated: Date { created ?? .distantPast }
     var sortSize: Int64 { size ?? -1 }
 }
 
@@ -34,6 +35,8 @@ final class BrowserTab: Identifiable {
     /// Shift 點擊範圍選取的起點(上一次不按 Shift 點擊的項目)
     var anchor: URL?
     var sortOrder = [KeyPathComparator(\DirItem.name, comparator: .localizedStandard)]
+    /// 資料夾是否固定排在檔案前面(排列方式選單可關)
+    var foldersFirst = true
     var showHidden = false { didSet { reload() } }
     var error: String?
     private(set) var back: [URL] = []
@@ -50,9 +53,10 @@ final class BrowserTab: Identifiable {
     var canGoForward: Bool { !forward.isEmpty }
     var canGoUp: Bool { url.path != "/" }
 
-    /// 資料夾排在前面,其餘依目前排序
+    /// 依目前排序;開著「資料夾排在最前面」時資料夾一律在前
     var sortedItems: [DirItem] {
         let sorted = items.sorted(using: sortOrder)
+        guard foldersFirst else { return sorted }
         return sorted.filter(\.isBrowsable) + sorted.filter { !$0.isBrowsable }
     }
 

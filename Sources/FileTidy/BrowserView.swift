@@ -50,6 +50,9 @@ struct BrowserView: View {
                     TableColumn("修改日期", value: \.sortModified) { item in
                         Text(item.modified.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "—").foregroundStyle(.secondary)
                     }.width(min: 110, ideal: 150)
+                    TableColumn("建立日期", value: \.sortCreated) { item in
+                        Text(item.created.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "—").foregroundStyle(.secondary)
+                    }.width(min: 110, ideal: 150)
                     TableColumn("大小", value: \.sortSize) { item in
                         Text(item.size.map(formatBytes) ?? "—").foregroundStyle(.secondary).monospacedDigit()
                     }.width(min: 60, ideal: 80)

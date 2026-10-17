@@ -259,7 +259,11 @@ T = {
     "中": ("Medium", "中"),
     "大": ("Large", "大"),
     "資訊": ("Information", "情報"),
-    "排序方式": ("Sort By", "並べ替え"),
+    "排列方式": ("Sort By", "並べ替え"),
+    "排列方式:%@": ("Sort By: %@", "並べ替え:%@"),
+    "遞增": ("Ascending", "昇順"),
+    "遞減": ("Descending", "降順"),
+    "資料夾排在最前面": ("Keep Folders on Top", "フォルダを先頭に表示"),
 
     # Finder
     "隱藏 Finder": ("Hide Finder", "Finderを隠す"),

@@ -190,12 +190,7 @@ struct AppCommands: Commands {
                     }
                 }
             }
-            Menu("排序方式") {
-                Button("名稱") { model.sort(by: .name) }
-                Button("修改日期") { model.sort(by: .modified) }
-                Button("大小") { model.sort(by: .size) }
-                Button("種類") { model.sort(by: .kind) }
-            }
+            Menu("排列方式") { SortMenuItems(model: model) }
             Divider()
         }
         CommandMenu("系統整合") {
@@ -413,6 +408,12 @@ struct ContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .help("顯示方式")
+                Menu {
+                    SortMenuItems(model: model)
+                } label: {
+                    Label("排列方式", systemImage: "arrow.up.arrow.down")
+                }
+                .help("排列方式:\(model.sortKey.title)")
             }
         } else {
             ToolbarItem(placement: .principal) {
@@ -464,6 +465,24 @@ struct ContentView: View {
         guard model.mode == .browse else { return "" }
         let sel = model.tab.selection.count
         return sel > 0 ? String(localized: "已選擇 \(sel) 個,共 \(model.tab.items.count) 個項目") : String(localized: "\(model.tab.items.count) 個項目")
+    }
+}
+
+/// 排列方式選單(工具列按鈕與「顯示方式」選單共用):依什麼排、方向、資料夾是否在前
+struct SortMenuItems: View {
+    let model: AppModel
+
+    var body: some View {
+        ForEach(AppModel.SortKey.allCases) { key in
+            Toggle(isOn: Binding(get: { model.sortKey == key }, set: { _ in model.sort(by: key) })) {
+                Text(key.title)
+            }
+        }
+        Divider()
+        Toggle("遞增", isOn: Binding(get: { model.sortAscending }, set: { _ in model.setSortAscending(true) }))
+        Toggle("遞減", isOn: Binding(get: { !model.sortAscending }, set: { _ in model.setSortAscending(false) }))
+        Divider()
+        Toggle("資料夾排在最前面", isOn: Binding(get: { model.foldersFirst }, set: { model.foldersFirst = $0 }))
     }
 }
 

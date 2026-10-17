@@ -142,6 +142,7 @@ final class AppModel {
         let first = BrowserTab(url: FileManager.default.homeDirectoryForCurrentUser)
         tabs = [first]
         activeID = first.id
+        applySavedSort(to: first)
         history = journal.entries
         Task { await startCatalog() }
         longPress.install { [weak self] in self?.previewSelection() }
@@ -302,6 +303,7 @@ final class AppModel {
 
     func newTab(_ url: URL? = nil) {
         let t = BrowserTab(url: url ?? currentFolder)
+        applySavedSort(to: t)
         t.showHidden = showHidden
         tabs.append(t)
         activeID = t.id
@@ -314,16 +316,83 @@ final class AppModel {
         if activeID == id { activeID = tabs[min(i, tabs.count - 1)].id }
     }
 
-    enum SortKey { case name, modified, size, kind }
+    // MARK: 排列方式
 
-    /// 排序(列表模式也可直接點欄位標題;圖示模式用選單)
-    func sort(by key: SortKey) {
-        switch key {
-        case .name: tab.sortOrder = [KeyPathComparator(\DirItem.name, comparator: .localizedStandard)]
-        case .modified: tab.sortOrder = [KeyPathComparator(\DirItem.sortModified, order: .reverse)]
-        case .size: tab.sortOrder = [KeyPathComparator(\DirItem.sortSize, order: .reverse)]
-        case .kind: tab.sortOrder = [KeyPathComparator(\DirItem.kind, comparator: .localizedStandard)]
+    enum SortKey: String, CaseIterable, Identifiable {
+        case name, kind, modified, created, size
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .name: return String(localized: "名稱")
+            case .kind: return String(localized: "種類")
+            case .modified: return String(localized: "修改日期")
+            case .created: return String(localized: "建立日期")
+            case .size: return String(localized: "大小")
+            }
         }
+
+        /// 第一次選這個排序時的方向:名稱、種類由 A 到 Z;日期、大小由新到舊、由大到小(和 Finder 一樣)
+        var defaultAscending: Bool { self == .name || self == .kind }
+
+        func comparator(ascending: Bool) -> KeyPathComparator<DirItem> {
+            let order: SortOrder = ascending ? .forward : .reverse
+            switch self {
+            case .name: return KeyPathComparator(\DirItem.name, comparator: .localizedStandard, order: order)
+            case .kind: return KeyPathComparator(\DirItem.kind, comparator: .localizedStandard, order: order)
+            case .modified: return KeyPathComparator(\DirItem.sortModified, order: order)
+            case .created: return KeyPathComparator(\DirItem.sortCreated, order: order)
+            case .size: return KeyPathComparator(\DirItem.sortSize, order: order)
+            }
+        }
+
+        /// 列表的欄位標題也會改排序,所以從目前的比較器反推是哪一種
+        init?(comparator: KeyPathComparator<DirItem>) {
+            switch comparator.keyPath {
+            case \DirItem.name: self = .name
+            case \DirItem.kind: self = .kind
+            case \DirItem.sortModified: self = .modified
+            case \DirItem.sortCreated: self = .created
+            case \DirItem.sortSize: self = .size
+            default: return nil
+            }
+        }
+    }
+
+    private static let sortKeyDefault = "sortKey"
+    private static let sortAscendingDefault = "sortAscending"
+    private static let foldersFirstDefault = "foldersFirst"
+
+    var sortKey: SortKey { tab.sortOrder.first.flatMap(SortKey.init(comparator:)) ?? .name }
+    var sortAscending: Bool { tab.sortOrder.first?.order != .reverse }
+
+    /// 排序(列表模式也可直接點欄位標題)。記住選擇,新分頁沿用。
+    /// 再選一次目前的排序 = 反過來排。
+    func sort(by key: SortKey, ascending: Bool? = nil) {
+        let asc = ascending ?? (key == sortKey ? !sortAscending : key.defaultAscending)
+        tab.sortOrder = [key.comparator(ascending: asc)]
+        UserDefaults.standard.set(key.rawValue, forKey: Self.sortKeyDefault)
+        UserDefaults.standard.set(asc, forKey: Self.sortAscendingDefault)
+    }
+
+    func setSortAscending(_ asc: Bool) { sort(by: sortKey, ascending: asc) }
+
+    var foldersFirst: Bool {
+        get { tab.foldersFirst }
+        set {
+            tabs.forEach { $0.foldersFirst = newValue }
+            UserDefaults.standard.set(newValue, forKey: Self.foldersFirstDefault)
+        }
+    }
+
+    /// 新分頁套用上次選的排列方式
+    func applySavedSort(to t: BrowserTab) {
+        let d = UserDefaults.standard
+        if let raw = d.string(forKey: Self.sortKeyDefault), let key = SortKey(rawValue: raw) {
+            let asc = d.object(forKey: Self.sortAscendingDefault) as? Bool ?? key.defaultAscending
+            t.sortOrder = [key.comparator(ascending: asc)]
+        }
+        t.foldersFirst = d.object(forKey: Self.foldersFirstDefault) as? Bool ?? true
     }
 
     func toggleHidden() {
