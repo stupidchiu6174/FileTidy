@@ -38,6 +38,9 @@ public enum FileTidyIntegration {
         // LiriOS 平常是沒有 Dock 圖示的背景 App。剛切成一般 App 的那一拍就要求啟用會被系統忽略——
         // 「在 Finder 中顯示」明明送到了、視窗卻沒跑出來,就是這個原因。等下一拍再啟用。
         if NSApp.activationPolicy() != .regular {
+            // 視窗還在(關閉只是藏起來)就先讓它浮上來:切換成一般 App、等系統啟用要好幾百毫秒,
+            // 不必等那個才看得到視窗
+            if let w = window, w.contentView != nil { w.orderFrontRegardless() }
             NSApp.setActivationPolicy(.regular)
             DispatchQueue.main.async(execute: present)
         } else {
@@ -69,8 +72,39 @@ public enum FileTidyIntegration {
             || (UserDefaults.standard.bool(forKey: hideAtLoginKey) && launchedAsLoginItem)
         guard wantsHidden else { return }
         // 只關檔案管理視窗;不能 NSApp.hide,那會連側面板、壁紙、桌面小工具一起藏起來
-        if let w = window { w.close() } else { closeWindowOnAttach = true }
+        if let w = window { hide(w) } else { closeWindowOnAttach = true }
     }
+
+    /// 「關閉」檔案管理視窗其實只是藏起來。SwiftUI 真的關掉視窗時會拆掉整個畫面,
+    /// 下次「在 Finder 中顯示」或開資料夾就得從頭重建視窗,要等好一下才出現。
+    static func hide(_ w: NSWindow) {
+        w.orderOut(nil)
+        // 原本由視窗關閉通知觸發的「沒有一般視窗就收回 Dock 圖示」,藏起來時自己做
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let stillOpen = NSApp.windows.contains { $0 !== w && $0.isVisible && $0.canBecomeMain }
+            if !stillOpen, !w.isVisible { NSApp.setActivationPolicy(.accessory) }
+        }
+    }
+
+    /// 包住 SwiftUI 原本的視窗代理:按關閉(紅色按鈕、⌘W)時改成 hide,其他訊息照轉
+    final class HideOnCloseDelegate: NSObject, NSWindowDelegate {
+        weak var original: NSWindowDelegate?
+        init(original: NSWindowDelegate?) { self.original = original }
+
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            if original?.windowShouldClose?(sender) == false { return false }
+            MainActor.assumeIsolated { FileTidyIntegration.hide(sender) }
+            return false
+        }
+        override func responds(to aSelector: Selector!) -> Bool {
+            super.responds(to: aSelector) || (original?.responds(to: aSelector) ?? false)
+        }
+        override func forwardingTarget(for aSelector: Selector!) -> Any? {
+            original?.responds(to: aSelector) == true ? original : nil
+        }
+    }
+    /// window.delegate 是 weak,要自己留住
+    static var closeDelegate: HideOnCloseDelegate?
 
     /// 其他 App 用 LiriOS 開啟資料夾/檔案(預設檔案檢視器)
     public static func open(_ urls: [URL]) {
@@ -105,9 +139,16 @@ private struct WindowAttacher: NSViewRepresentable {
             guard let w = window else { return }
             MainActor.assumeIsolated {
                 FileTidyIntegration.window = w
+                // 等 SwiftUI 設好自己的代理再包上去
+                DispatchQueue.main.async {
+                    guard !(w.delegate is FileTidyIntegration.HideOnCloseDelegate) else { return }
+                    let d = FileTidyIntegration.HideOnCloseDelegate(original: w.delegate)
+                    FileTidyIntegration.closeDelegate = d
+                    w.delegate = d
+                }
                 if FileTidyIntegration.closeWindowOnAttach {
                     FileTidyIntegration.closeWindowOnAttach = false
-                    DispatchQueue.main.async { w.close() }
+                    DispatchQueue.main.async { FileTidyIntegration.hide(w) }
                 } else {
                     NSApp.setActivationPolicy(.regular)
                 }

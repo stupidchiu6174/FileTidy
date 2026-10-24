@@ -135,6 +135,9 @@ struct BrowseContextMenu: View {
             Button("拷貝") { model.copyToPasteboard(urls) }
             Button("貼上") { model.paste(into: urls.count == 1 && urls[0].hasDirectoryPath ? urls[0] : nil) }
             Button("製作副本") { model.tab.selection = sel; model.duplicateSelection() }
+            Button(urls.count == 1 ? "壓縮「\(urls[0].lastPathComponent)」" : "壓縮 \(urls.count) 個項目") {
+                model.tab.selection = sel; model.compressSelection()
+            }
             Button("拷貝路徑") { model.copyPath(urls) }
             if urls.count == 1, isBrowsableFolder(urls[0]) {
                 Divider()
@@ -178,10 +181,15 @@ struct FileDropDelegate: DropDelegate {
     func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.fileURL]) }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: NSEvent.modifierFlags.contains(.option) ? .copy : .move)
+        // 停在某個資料夾列上一會兒就自動打開它(彈簧資料夾)
+        model.springHover(model.folderInTable(atDropLocation: info.location))
+        return DropProposal(operation: NSEvent.modifierFlags.contains(.option) ? .copy : .move)
     }
 
+    func dropExited(info: DropInfo) { model.springHover(nil) }
+
     func performDrop(info: DropInfo) -> Bool {
+        model.springHover(nil)
         let providers = info.itemProviders(for: [.fileURL])
         let location = info.location  // 放下的位置(表格左上為原點),用來判斷放在哪一列
         guard !providers.isEmpty else { return false }
@@ -207,8 +215,11 @@ struct FolderDropDelegate: DropDelegate {
     @Binding var hovered: URL?
 
     func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.fileURL]) }
-    func dropEntered(info: DropInfo) { hovered = target }
-    func dropExited(info: DropInfo) { if hovered == target { hovered = nil } }
+    func dropEntered(info: DropInfo) { hovered = target; model.springHover(target) }
+    func dropExited(info: DropInfo) {
+        if hovered == target { hovered = nil }
+        model.springLeave(target)
+    }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
         if target.standardizedFileURL == model.trashURL.standardizedFileURL { return DropProposal(operation: .move) }
@@ -219,6 +230,7 @@ struct FolderDropDelegate: DropDelegate {
         let providers = info.itemProviders(for: [.fileURL])
         guard !providers.isEmpty else { return false }
         hovered = nil
+        model.springHover(nil)
         Task { @MainActor in
             var urls: [URL] = []
             for p in providers { if let u = await loadFileURL(p) { urls.append(u) } }
@@ -386,6 +398,9 @@ struct SearchContextMenu: View {
             Button("顯示所在位置") { model.open(url.deletingLastPathComponent(), select: url) }
             Button("拷貝") { model.copyToPasteboard(urls) }
             Button("拷貝路徑") { model.copyPath(urls) }
+            Button(urls.count == 1 ? "壓縮「\(url.lastPathComponent)」" : "壓縮 \(urls.count) 個項目") {
+                model.searchSelection = paths; model.compressSelection()
+            }
             Divider()
             Button("移到垃圾桶", role: .destructive) { model.perform(FileOps.trash(urls)); model.runSearch() }
         }

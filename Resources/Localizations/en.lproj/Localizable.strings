@@ -58,6 +58,8 @@
 "重新命名" = "Rename";
 "拷貝" = "Copy";
 "製作副本" = "Duplicate";
+"壓縮「%@」" = "Compress “%@”";
+"壓縮 %lld 個項目" = "Compress %lld Items";
 "移到垃圾桶" = "Move to Trash";
 "空的資料夾" = "Empty folder";
 "取消" = "Cancel";

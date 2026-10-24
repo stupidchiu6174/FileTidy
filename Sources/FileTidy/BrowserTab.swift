@@ -62,7 +62,7 @@ final class BrowserTab: Identifiable {
 
     init(url: URL) {
         self.url = url
-        reload()
+        reload(debounce: false)
         watch()
     }
 
@@ -72,7 +72,8 @@ final class BrowserTab: Identifiable {
         url = target
         selection = select.map { [$0] } ?? []
         pendingSelect = select
-        reload()
+        // 切換資料夾要立刻列出;只有檔案監看的連續事件才需要合併
+        reload(debounce: false)
         watch()
     }
 
@@ -80,12 +81,14 @@ final class BrowserTab: Identifiable {
     func goForward() { guard let next = forward.popLast() else { return }; back.append(url); go(next, record: false) }
     func goUp() { if canGoUp { go(url.deletingLastPathComponent()) } }
 
-    func reload() {
+    func reload(debounce: Bool = true) {
         reloadTask?.cancel()
         let target = url, hidden = showHidden
         reloadTask = Task {
-            try? await Task.sleep(nanoseconds: 120_000_000)  // 合併連續事件
-            guard !Task.isCancelled else { return }
+            if debounce {
+                try? await Task.sleep(nanoseconds: 120_000_000)  // 合併連續事件
+                guard !Task.isCancelled else { return }
+            }
             let result = await Task.detached { Result { try DirectoryLister.list(target, showHidden: hidden) } }.value
             guard !Task.isCancelled, target == url else { return }
             switch result {

@@ -116,6 +116,9 @@ final class AppModel {
     var status = ""
     var generation = 0
     var busy = false
+    /// 彈簧資料夾:拖曳中停留的資料夾與計時器
+    @ObservationIgnored var springTarget: URL?
+    @ObservationIgnored var springTimer: Timer?
 
     // 對話框
     var renameTarget: URL?
@@ -545,12 +548,46 @@ final class AppModel {
     /// 放到表格上:放下位置在資料夾列上就放進該資料夾,否則放進目前資料夾
     func dropOnTable(_ urls: [URL], at location: CGPoint) {
         guard !urls.isEmpty else { return }
+        drop(urls, into: folderInTable(atDropLocation: location) ?? currentFolder)
+    }
+
+    /// 拖放位置底下的資料夾列(不在資料夾列上 → nil)
+    func folderInTable(atDropLocation location: CGPoint) -> URL? {
         let items = tab.sortedItems
-        var target = currentFolder
-        if let row = fileTableRow(atDropLocation: location), items.indices.contains(row), items[row].isBrowsable {
-            target = items[row].url
+        guard let row = fileTableRow(atDropLocation: location), items.indices.contains(row), items[row].isBrowsable else { return nil }
+        return items[row].url
+    }
+
+    // MARK: 彈簧資料夾
+
+    /// 拖著東西停在資料夾上這麼久就打開它,可以一路往下層放
+    static let springDelay: TimeInterval = 0.7
+
+    /// 拖曳中游標停在哪個資料夾上(nil = 不在資料夾上)。換目標就重新計時。
+    func springHover(_ target: URL?) {
+        let target = target?.standardizedFileURL
+        guard target != springTarget else { return }
+        springTimer?.invalidate()
+        springTimer = nil
+        springTarget = target
+        guard let target, target != currentFolder.standardizedFileURL,
+              target != trashURL.standardizedFileURL, isBrowsableFolder(target) else { return }
+        // 拖曳期間主執行緒跑在 event tracking 模式,計時器要掛在 common 模式才會觸發
+        let t = Timer(timeInterval: Self.springDelay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.springTarget == target else { return }
+                self.springTarget = nil
+                self.springTimer = nil
+                self.open(target)
+            }
         }
-        drop(urls, into: target)
+        RunLoop.main.add(t, forMode: .common)
+        springTimer = t
+    }
+
+    /// 離開某個資料夾(只在它還是目前目標時才取消,避免把剛進入的下一個目標清掉)
+    func springLeave(_ target: URL) {
+        if springTarget == target.standardizedFileURL { springHover(nil) }
     }
 
     /// DropInfo.location 是以 SwiftUI 表格左上角為原點;換算成 NSTableView 的座標再查是哪一列
