@@ -1,0 +1,136 @@
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --side: #eef0f3;
+  --text: #1c1d21;
+  --muted: #6b6f78;
+  --line: #e2e4e9;
+  --hover: #e8ebf0;
+  --sel: #cfe1ff;
+  --sel-strong: #2563eb;
+  --danger: #c62828;
+  --folder: #f5b83d;
+  --bar: #2563eb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1d1e22;
+    --panel: #232429;
+    --side: #1a1b1f;
+    --text: #e9eaee;
+    --muted: #9a9ea8;
+    --line: #34363d;
+    --hover: #2e3036;
+    --sel: #23406f;
+    --sel-strong: #5b8dff;
+    --danger: #ff6b6b;
+    --bar: #5b8dff;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", "Microsoft JhengHei UI", "Yu Gothic UI", system-ui, sans-serif;
+  user-select: none;
+  overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+
+#app { display: grid; grid-template-columns: 210px 1fr; height: 100vh; }
+
+/* 側邊欄 */
+#sidebar { background: var(--side); border-right: 1px solid var(--line); padding: 10px 8px; display: flex; flex-direction: column; overflow-y: auto; }
+.side-title { font-size: 11px; color: var(--muted); margin: 12px 8px 4px; font-weight: 600; }
+.side-title:first-child { margin-top: 2px; }
+.side-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: none; text-align: left; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-item:hover { background: var(--hover); }
+.side-item.active { background: var(--sel); }
+.side-item.drop { outline: 2px solid var(--sel-strong); }
+.side-item .ico { width: 18px; text-align: center; flex: none; }
+.side-spacer { flex: 1; }
+.lang { display: flex; align-items: center; gap: 6px; padding: 8px; color: var(--muted); font-size: 12px; }
+.lang select { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 4px; }
+
+/* 工具列 */
+#main { display: flex; flex-direction: column; min-width: 0; }
+#toolbar { display: flex; align-items: center; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.tb { width: 30px; height: 30px; border: 0; border-radius: 6px; background: none; font-size: 16px; cursor: default; flex: none; }
+.tb:hover:not(:disabled) { background: var(--hover); }
+.tb:disabled { opacity: .35; }
+.tb.on { background: var(--sel); }
+#pathbox { flex: 1; min-width: 120px; height: 30px; position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+#crumbs { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 32px 0 4px; overflow: hidden; white-space: nowrap; cursor: text; }
+.crumb { border: 0; background: none; padding: 2px 5px; border-radius: 4px; cursor: default; flex: none; }
+.crumb:hover { background: var(--hover); }
+.crumb:last-child { font-weight: 600; }
+.sep { color: var(--muted); padding: 0 1px; flex: none; }
+#pathinput { position: absolute; inset: 0; width: 100%; border: 0; border-radius: 6px; padding: 0 8px; background: var(--panel); outline: 2px solid var(--sel-strong); display: none; }
+#pathbox.editing #pathinput { display: block; }
+#pathbox.editing #crumbs { visibility: hidden; }
+#pathbox.notfound #pathinput { outline-color: var(--danger); }
+#pathhint { font-size: 12px; color: var(--muted); padding: 0 12px; height: 0; overflow: hidden; background: var(--panel); }
+#pathhint.show { height: 22px; line-height: 22px; border-bottom: 1px solid var(--line); }
+#pathhint.error { color: var(--danger); }
+#searchbox { display: flex; align-items: center; gap: 4px; width: 280px; flex: none; }
+#search { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; background: var(--bg); }
+#search:focus { outline: 2px solid var(--sel-strong); border-color: transparent; }
+#scope { height: 30px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+
+/* 內容 */
+#content { flex: 1; overflow: auto; background: var(--panel); position: relative; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead th { position: sticky; top: 0; background: var(--panel); border-bottom: 1px solid var(--line); text-align: left; font-weight: 500; color: var(--muted); padding: 5px 8px; white-space: nowrap; cursor: default; z-index: 1; }
+thead th:hover { background: var(--hover); }
+thead th.sorted::after { content: " ▲"; font-size: 9px; }
+thead th.sorted.desc::after { content: " ▼"; }
+tbody td { padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid transparent; }
+tbody tr:nth-child(even) { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+tbody tr.sel { background: var(--sel); }
+tbody tr.drop td { background: var(--sel); outline: 1px solid var(--sel-strong); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+td.muted { color: var(--muted); }
+.name { display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.name span { overflow: hidden; text-overflow: ellipsis; }
+.name input { flex: 1; min-width: 0; padding: 0 4px; border: 1px solid var(--sel-strong); border-radius: 3px; background: var(--panel); }
+.icon { width: 18px; height: 18px; flex: none; }
+.empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
+.spinner { width: 22px; height: 22px; border: 2px solid var(--line); border-top-color: var(--sel-strong); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.banner { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: 0; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--sel) 50%, var(--panel)); text-align: left; cursor: default; }
+.banner b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.banner .key { color: var(--muted); }
+
+/* 工具頁 */
+.tool { padding: 16px 20px; }
+.tool h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+.tool .sub { color: var(--muted); margin-bottom: 12px; }
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 12px; cursor: default; }
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn.primary { background: var(--sel-strong); border-color: var(--sel-strong); color: #fff; }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: .5; }
+.group { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.group-head { padding: 6px 10px; background: var(--bg); color: var(--muted); font-size: 12px; }
+.dup { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-top: 1px solid var(--line); }
+.dup .path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.dup .tag { font-size: 11px; color: var(--muted); }
+.usage-row { display: grid; grid-template-columns: 22px minmax(120px, 1fr) 2fr 90px; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 5px; }
+.usage-row:hover { background: var(--hover); }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+
+/* 狀態列、選單、通知 */
+#status { display: flex; justify-content: space-between; gap: 12px; padding: 4px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; background: var(--panel); white-space: nowrap; }
+#status-right { cursor: default; }
+#menu { position: fixed; z-index: 10; min-width: 200px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+#menu button { display: block; width: 100%; padding: 5px 10px; border: 0; border-radius: 5px; background: none; text-align: left; cursor: default; }
+#menu button:hover { background: var(--sel-strong); color: #fff; }
+#menu button.danger { color: var(--danger); }
+#menu button.danger:hover { color: #fff; background: var(--danger); }
+#menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+#toast { position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--panel); padding: 6px 14px; border-radius: 6px; z-index: 11; }

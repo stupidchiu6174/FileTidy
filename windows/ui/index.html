@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FileTidy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="side-title" data-t="位置"></div>
+      <nav id="places"></nav>
+      <div class="side-title" data-t="磁碟"></div>
+      <nav id="drives"></nav>
+      <div class="side-title" data-t="整理工具"></div>
+      <nav id="tools">
+        <button class="side-item" data-mode="duplicates"><span class="ico">⧉</span><span data-t="重複檔案"></span></button>
+        <button class="side-item" data-mode="usage"><span class="ico">◔</span><span data-t="空間分析"></span></button>
+      </nav>
+      <div class="side-spacer"></div>
+      <label class="lang"><span data-t="語言"></span> <select id="lang"></select></label>
+    </aside>
+
+    <main id="main">
+      <header id="toolbar">
+        <button id="back" class="tb" data-title="返回">‹</button>
+        <button id="forward" class="tb" data-title="下一頁">›</button>
+        <button id="up" class="tb" data-title="上層資料夾">↑</button>
+        <div id="pathbox">
+          <div id="crumbs"></div>
+          <input id="pathinput" spellcheck="false" autocomplete="off">
+        </div>
+        <button id="refresh" class="tb" data-title="重新整理">⟳</button>
+        <button id="newfolder" class="tb" data-title="新增資料夾">＋</button>
+        <button id="hidden" class="tb" data-title="顯示/隱藏隱藏檔">◌</button>
+        <div id="searchbox">
+          <input id="search" type="search" spellcheck="false" autocomplete="off">
+          <select id="scope">
+            <option value="all" data-t="整台電腦"></option>
+            <option value="folder" data-t="此資料夾"></option>
+          </select>
+        </div>
+      </header>
+      <div id="pathhint"></div>
+      <section id="content"></section>
+      <footer id="status"><span id="status-left"></span><span id="status-right"></span></footer>
+    </main>
+  </div>
+  <div id="menu" hidden></div>
+  <div id="toast" hidden></div>
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

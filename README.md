@@ -15,6 +15,10 @@ swift test
 
 也可以當函式庫用:把 `FileTidyWindow()` 放進你的 SwiftUI `App`,在啟動時呼叫 `FileTidyIntegration.didFinishLaunching()`。
 
+## Windows 版
+
+在 [`windows/`](windows/README.md),用 Tauri 另外寫的,GitHub Actions 會在 Windows 上編譯出安裝檔。
+
 ## 翻譯
 
 `tools/translations.py` 是翻譯表,`python3 tools/make_strings.py` 會產生 `Resources/Localizations/*.lproj`,有漏翻就會失敗。這些檔案要放進 .app 的 Resources 才會生效,用 `swift run` 時介面是原文(繁中)。
