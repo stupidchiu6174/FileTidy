@@ -101,6 +101,9 @@ final class AppModel {
     var searchSelection = Set<String>()
     var searchAnchor: String?
     var focusSearchTick = 0
+    /// 搜尋框輸入像路徑("/downloads"、"~/doc")且找得到對應位置時,顯示「前往」的建議
+    var pathMatch: URL?
+    var showGoToFolder = false
 
     // 目錄
     let catalog = FileCatalog()
@@ -273,6 +276,7 @@ final class AppModel {
 
     func queryChanged() {
         searchTask?.cancel()
+        pathMatch = PathResolver.looksLikePath(query) ? PathResolver.resolve(query, relativeTo: currentFolder) : nil
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { hits = []; searching = false; return }
         mode = .browse
         runSearch()
@@ -292,7 +296,30 @@ final class AppModel {
         }
     }
 
-    func clearSearch() { searchTask?.cancel(); query = ""; hits = []; searching = false }
+    func clearSearch() { searchTask?.cancel(); query = ""; hits = []; searching = false; pathMatch = nil }
+
+    /// 搜尋框按 Enter:輸入是路徑且找得到時直接前往
+    func submitSearch() {
+        if let pathMatch { reveal(pathMatch) }
+    }
+
+    /// 「前往資料夾」:接受不完整的路徑,資料夾 → 進入;檔案 → 到所在資料夾並選取。
+    @discardableResult
+    func goToPath(_ text: String) -> Bool {
+        guard let url = PathResolver.resolve(text, relativeTo: currentFolder) else { return false }
+        reveal(url)
+        return true
+    }
+
+    private func reveal(_ url: URL) {
+        var isDir: ObjCBool = false
+        let pkg = (try? url.resourceValues(forKeys: [.isPackageKey]))?.isPackage ?? false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue, !pkg {
+            open(url)
+        } else {
+            open(url.deletingLastPathComponent(), select: url)
+        }
+    }
 
     func focusSearch() { focusSearchTick += 1 }
 

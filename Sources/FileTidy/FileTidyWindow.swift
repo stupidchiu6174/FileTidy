@@ -262,6 +262,7 @@ struct AppCommands: Commands {
             Button("返回") { model.tab.goBack() }.keyboardShortcut("[")
             Button("下一頁") { model.tab.goForward() }.keyboardShortcut("]")
             Button("上層資料夾") { model.tab.goUp() }.keyboardShortcut(.upArrow)
+            Button("前往資料夾…") { model.showGoToFolder = true }.keyboardShortcut("g", modifiers: [.command, .shift])
             Divider()
             Button("搜尋") { model.focusSearch() }.keyboardShortcut("f")
             Button("顯示/隱藏隱藏檔") { model.toggleHidden() }.keyboardShortcut(".", modifiers: [.command, .shift])
@@ -307,12 +308,14 @@ struct ContentView: View {
             }
             .searchFocused($searchFocused)
             .onChange(of: model.query) { model.queryChanged() }
+            .onSubmit(of: .search) { model.submitSearch() }
         }
         .onChange(of: model.focusSearchTick) { searchFocused = true }
         .sheet(item: $model.infoTarget) { InfoSheet(url: $0) }
         .sheet(item: $model.analysisTarget) { FolderAnalysisSheet(request: $0) }
         .sheet(item: $model.sidebarEditTarget) { SidebarEntryEditor(entryID: $0.id) }
         .sheet(isPresented: $model.showSidebarCustomize) { SidebarCustomizeSheet() }
+        .sheet(isPresented: $model.showGoToFolder) { GoToFolderSheet() }
         .confirmationDialog("永久刪除 \(model.pendingDelete?.count ?? 0) 個項目?", isPresented: Binding(
             get: { model.pendingDelete != nil }, set: { if !$0 { model.pendingDelete = nil } }), titleVisibility: .visible) {
             Button("永久刪除", role: .destructive) {
@@ -469,7 +472,12 @@ struct ContentView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .browse:
-            if model.query.trimmingCharacters(in: .whitespaces).isEmpty { BrowserView() } else { SearchResultsView() }
+            if model.query.trimmingCharacters(in: .whitespaces).isEmpty { BrowserView() } else {
+                VStack(spacing: 0) {
+                    if let target = model.pathMatch { PathMatchBanner(url: target) }
+                    SearchResultsView()
+                }
+            }
         case .organize: OrganizeView()
         case .duplicates: DuplicatesView()
         case .rename: RenameView()
@@ -589,5 +597,66 @@ struct PathBar: View {
             cur.deleteLastPathComponent()
         }
         return out.reversed()
+    }
+}
+
+/// 搜尋框輸入的是路徑時,結果上方的「前往」列(按 Enter 也可以)
+struct PathMatchBanner: View {
+    @Environment(AppModel.self) private var model
+    let url: URL
+
+    var body: some View {
+        Button { model.goToPath(url.path) } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.right.circle.fill").foregroundStyle(.tint)
+                Text("前往")
+                Text(verbatim: url.path).fontWeight(.semibold).lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Text(verbatim: "↩").foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(url.path)
+        Divider()
+    }
+}
+
+/// 「前往資料夾…」(⇧⌘G):可以輸入不完整的路徑,例如 /downloads、~/doc、desktop/專案
+struct GoToFolderSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var notFound = false
+
+    var body: some View {
+        let match = text.isEmpty ? nil : PathResolver.resolve(text, relativeTo: model.currentFolder)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("前往資料夾").font(.headline)
+            TextField(text: $text, prompt: Text(verbatim: "~/Downloads")) { EmptyView() }
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 380)
+                .onSubmit(go)
+                .onChange(of: text) { notFound = false }
+            if notFound {
+                Text("找不到這個位置").font(.caption).foregroundStyle(.red)
+            } else if let match {
+                Text(verbatim: match.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            } else {
+                Text(verbatim: " ").font(.caption)
+            }
+            HStack {
+                Spacer()
+                Button("取消", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("前往") { go() }.keyboardShortcut(.defaultAction).buttonStyle(.glassProminent)
+                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+    }
+
+    private func go() {
+        if model.goToPath(text) { dismiss() } else { notFound = true }
     }
 }

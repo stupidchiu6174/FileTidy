@@ -133,6 +133,9 @@
 "返回" = "Back";
 "下一頁" = "Forward";
 "上層資料夾" = "Enclosing Folder";
+"前往資料夾…" = "Go to Folder…";
+"前往資料夾" = "Go to Folder";
+"找不到這個位置" = "Can’t find this location";
 "搜尋" = "Search";
 "顯示/隱藏隱藏檔" = "Show/Hide Hidden Files";
 "重建索引" = "Rebuild Index";

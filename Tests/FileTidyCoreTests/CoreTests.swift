@@ -440,4 +440,35 @@ final class CoreTests: XCTestCase {
         l.moveShown(shown, from: IndexSet(integer: 2), to: 0)   // 把 downloads 拖到最前面
         XCTAssertEqual(l.entries.prefix(5).map { $0.builtin ?? $0.path }, ["downloads", "desktop", "home", "documents", "/tmp/p"])
     }
+
+    // MARK: 不完整的路徑
+    func testPathResolverFindsIncompletePaths() throws {
+        let fm = FileManager.default
+        for d in ["Downloads", "Documents/Projects/年度報告", "Desktop"] {
+            try fm.createDirectory(at: dir.appendingPathComponent(d), withIntermediateDirectories: true)
+        }
+        try make("Documents/Projects/notes.txt")
+        let home = dir!
+        func r(_ s: String, _ base: URL? = nil) -> String? {
+            PathResolver.resolve(s, relativeTo: base, home: home).map { $0.standardizedFileURL.path }
+        }
+        let p = { (s: String) in home.appendingPathComponent(s).standardizedFileURL.path }
+
+        XCTAssertEqual(r("/downloads"), p("Downloads"))                          // 少了個人資料夾、大小寫不同
+        XCTAssertEqual(r("/Downloads/"), p("Downloads"))
+        XCTAssertEqual(r("~/downloads"), p("Downloads"))
+        XCTAssertEqual(r("~"), home.standardizedFileURL.path)
+        XCTAssertEqual(r("documents/projects"), p("Documents/Projects"))         // 相對路徑
+        XCTAssertEqual(r("~/doc/proj/年度"), p("Documents/Projects/年度報告"))       // 唯一的開頭相符
+        XCTAssertEqual(r("~/Documents/Projects/NOTES.TXT"), p("Documents/Projects/notes.txt"))
+        XCTAssertEqual(r("projects", home.appendingPathComponent("Documents")), p("Documents/Projects"))
+        XCTAssertEqual(r("\"~/desktop\""), p("Desktop"))                           // 貼上時帶引號
+        XCTAssertEqual(r("/"), "/")
+        XCTAssertNil(r("~/d"))                                                   // Downloads/Documents/Desktop 都符合 → 不猜
+        XCTAssertNil(r("/no-such-folder-xyz"))
+
+        XCTAssertTrue(PathResolver.looksLikePath("/downloads"))
+        XCTAssertTrue(PathResolver.looksLikePath("~"))
+        XCTAssertFalse(PathResolver.looksLikePath("downloads"))
+    }
 }
