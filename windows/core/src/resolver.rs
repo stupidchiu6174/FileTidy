@@ -74,19 +74,17 @@ pub fn resolve(input: &str, ctx: &Context) -> Option<PathBuf> {
         return None;
     }
 
-    // 完整的絕對路徑存在就直接用;網路路徑(\\server\share)不猜
-    let literal = PathBuf::from(&s);
-    if literal.is_absolute() && literal.exists() {
-        return Some(literal);
-    }
+    // 網路路徑(\\server\share)不猜,存在就用
     if s.starts_with("//") {
-        return None;
+        let p = PathBuf::from(if cfg!(windows) { s.replace('/', "\\") } else { s.clone() });
+        return p.exists().then_some(p);
     }
 
     let (roots, rest): (Vec<PathBuf>, &str) = if s == "~" || s.starts_with("~/") {
         (vec![ctx.home.clone()], &s[1..])
     } else if has_drive(&s) {
-        (vec![PathBuf::from(format!("{}/", &s[..2].to_uppercase()))], &s[2..])
+        let sep = if cfg!(windows) { '\\' } else { '/' };
+        (vec![PathBuf::from(format!("{}{sep}", &s[..2].to_uppercase()))], &s[2..])
     } else if s.starts_with('/') {
         // Unix 的絕對路徑一定從 / 開始找;Windows 的 "\xxx" 則是目前磁碟的根目錄
         let mut r: Vec<PathBuf> = if cfg!(windows) { vec![] } else { vec![PathBuf::from("/")] };
@@ -148,6 +146,11 @@ fn child(dir: &Path, name: &str, allow_prefix: bool) -> Option<PathBuf> {
         if let Some(n) = names.iter().find(|n| fold(n) == canonical) {
             return Some(dir.join(n));
         }
+    }
+    // 列表裡沒有、但實際存在:Windows 的 8.3 短檔名(RUNNER~1)、不列出的連結
+    let exact = dir.join(name);
+    if exact.exists() {
+        return Some(exact);
     }
     if !allow_prefix {
         return None;
@@ -255,6 +258,8 @@ mod tests {
         let (t, ctx) = setup();
         let abs = t.path().join("Downloads");
         assert_eq!(resolve(&abs.to_string_lossy(), &ctx), Some(abs.clone()));
+        // 大小寫不對的完整路徑,回傳實際的大小寫
+        assert_eq!(resolve(&t.path().join("downloads").to_string_lossy(), &ctx), Some(abs.clone()));
         std::env::set_var("FILETIDY_TEST_DIR", t.path());
         assert_eq!(resolve("%FILETIDY_TEST_DIR%/downloads", &ctx), Some(abs));
     }
