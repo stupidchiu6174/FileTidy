@@ -606,7 +606,7 @@ struct PathMatchBanner: View {
     let url: URL
 
     var body: some View {
-        Button { model.goToPath(url.path) } label: {
+        Button { model.submitSearch() } label: {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.right.circle.fill").foregroundStyle(.tint)
                 Text("前往")
@@ -629,9 +629,9 @@ struct GoToFolderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @State private var notFound = false
+    @State private var match: URL?
 
     var body: some View {
-        let match = text.isEmpty ? nil : PathResolver.resolve(text, relativeTo: model.currentFolder)
         VStack(alignment: .leading, spacing: 10) {
             Text("前往資料夾").font(.headline)
             TextField(text: $text, prompt: Text(verbatim: "~/Downloads")) { EmptyView() }
@@ -654,9 +654,12 @@ struct GoToFolderSheet: View {
             }
         }
         .padding(20)
+        .task(id: text) {
+            match = text.trimmingCharacters(in: .whitespaces).isEmpty ? nil : await model.locatePath(text)
+        }
     }
 
     private func go() {
-        if model.goToPath(text) { dismiss() } else { notFound = true }
+        Task { if await model.goToPath(text) { dismiss() } else { notFound = true } }
     }
 }

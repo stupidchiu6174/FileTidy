@@ -277,6 +277,14 @@ final class AppModel {
     func queryChanged() {
         searchTask?.cancel()
         pathMatch = PathResolver.looksLikePath(query) ? PathResolver.resolve(query, relativeTo: currentFolder) : nil
+        if pathMatch == nil, PathResolver.looksLikePath(query) {
+            // 不在根目錄/個人資料夾/目前資料夾底下時,改用索引依路徑結尾找(例如 "Backups/xxx")
+            let q = query
+            Task {
+                let found = await catalog.locate(q)
+                if query == q { pathMatch = found }
+            }
+        }
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { hits = []; searching = false; return }
         mode = .browse
         runSearch()
@@ -305,10 +313,16 @@ final class AppModel {
 
     /// 「前往資料夾」:接受不完整的路徑,資料夾 → 進入;檔案 → 到所在資料夾並選取。
     @discardableResult
-    func goToPath(_ text: String) -> Bool {
-        guard let url = PathResolver.resolve(text, relativeTo: currentFolder) else { return false }
+    func goToPath(_ text: String) async -> Bool {
+        guard let url = await locatePath(text) else { return false }
         reveal(url)
         return true
+    }
+
+    /// 先在根目錄/個人資料夾/目前資料夾底下找,找不到再用索引依路徑結尾找
+    func locatePath(_ text: String) async -> URL? {
+        if let url = PathResolver.resolve(text, relativeTo: currentFolder) { return url }
+        return await catalog.locate(text)
     }
 
     private func reveal(_ url: URL) {

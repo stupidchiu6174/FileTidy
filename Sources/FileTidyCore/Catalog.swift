@@ -373,6 +373,28 @@ public actor FileCatalog {
     // MARK: 搜尋
 
     /// scope:只搜尋此路徑底下。dirsOnly/filesOnly 可限制種類。
+    /// 依路徑的結尾在索引中找位置,例如 "Backups/psd1029_b1" 可以找到 ~/Documents/Backups/psd1029_b1。
+    /// 給 PathResolver 找不到(不在根目錄、個人資料夾或目前資料夾底下)的路徑輸入用。
+    /// 有多個符合時:資料夾優先,再來是路徑較短的,最後是最近修改的。
+    public func locate(_ input: String) -> URL? {
+        let comps = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            .split(separator: "/").map(String.init)
+            .filter { !$0.isEmpty && $0 != "." && $0 != "~" }
+        guard let last = comps.last, !comps.contains("..") else { return nil }
+        let lastNorm = TextNormalizer.normalize(last)
+        guard !lastNorm.isEmpty else { return nil }
+        let suffix = PathResolver.fold("/" + comps.joined(separator: "/"))
+        var best: CatalogItem?
+        for item in items.values where item.norm == lastNorm && PathResolver.fold(item.path).hasSuffix(suffix) {
+            guard let b = best else { best = item; continue }
+            if item.isDirectory != b.isDirectory { if item.isDirectory { best = item }; continue }
+            if item.path.count != b.path.count { if item.path.count < b.path.count { best = item }; continue }
+            if item.modified > b.modified { best = item }
+        }
+        return best.map { URL(fileURLWithPath: $0.path) }
+    }
+
     public func search(_ query: String, scope: String? = nil, limit: Int = 300) -> [SearchHit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let q = TextNormalizer.normalize(trimmed)

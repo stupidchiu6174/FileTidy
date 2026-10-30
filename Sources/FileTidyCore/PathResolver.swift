@@ -75,7 +75,7 @@ public enum PathResolver {
         return nil
     }
 
-    private static func fold(_ s: String) -> String {
+    static func fold(_ s: String) -> String {
         s.precomposedStringWithCanonicalMapping.folding(options: [.caseInsensitive, .widthInsensitive], locale: nil)
     }
 }

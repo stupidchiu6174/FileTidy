@@ -471,4 +471,22 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(PathResolver.looksLikePath("~"))
         XCTAssertFalse(PathResolver.looksLikePath("downloads"))
     }
+
+    func testCatalogLocatesPathBySuffix() async throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir.appendingPathComponent("Documents/Backups/psd1029_b1_20261030_094935"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: dir.appendingPathComponent("Old/deep/Backups/other"), withIntermediateDirectories: true)
+        let cat = FileCatalog(roots: [dir], cacheDir: dir.appendingPathComponent(".cache"))
+        await cat.start(semantic: { _ in nil })
+
+        let found = await cat.locate("Backups/psd1029_b1_20261030_094935/")
+        XCTAssertEqual(found?.lastPathComponent, "psd1029_b1_20261030_094935")
+        XCTAssertEqual(found?.deletingLastPathComponent().lastPathComponent, "Backups")
+        let lower = await cat.locate("backups/PSD1029_b1_20261030_094935")
+        XCTAssertEqual(lower?.lastPathComponent, "psd1029_b1_20261030_094935")
+        let backups = await cat.locate("/Backups")
+        XCTAssertEqual(backups.map { canonicalPath($0.path) }, canonicalPath(dir.appendingPathComponent("Documents/Backups").path))  // 較短的路徑優先
+        let missing = await cat.locate("Backups/nope")
+        XCTAssertNil(missing)
+    }
 }
